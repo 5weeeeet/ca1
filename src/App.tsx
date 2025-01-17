@@ -1,5 +1,5 @@
 import React from 'react'
-import { VideoChatApp } from './video-chat-app'
+import { VideoChatApp } from './components/video-chat-app'
 
 function App() {
   return (
