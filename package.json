@@ -10,7 +10,7 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "shadcn-ui": "^0.0.0" // Убедитесь, что версия правильная
+    "shadcn-ui": "^0.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
