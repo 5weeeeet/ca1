@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import { Button } from "/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "/components/ui/avatar"
-import { Textarea } from "/components/ui/textarea"
-import { Input } from "/components/ui/input"
-import { Label } from "/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "/components/ui/select"
+import { SetStateAction, useState } from 'react'
+import { Button } from "./components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar"
+import { Textarea } from "./components/ui/textarea"
+import { Input } from "./components/ui/input"
+import { Label } from "./components/ui/label"
+import { RadioGroup, RadioGroupItem } from "./components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select"
 
 export default function VideoChatApp() {
   const [isRegistered, setIsRegistered] = useState(false)
@@ -111,54 +111,56 @@ export default function VideoChatApp() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
-              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" />
+              <Input id="username" value={username} onChange={(e: { target: { value: SetStateAction<string> } }) => setUsername(e.target.value)} placeholder="Enter your username" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="Enter your phone number" />
+              <Input id="phone" value={phoneNumber} onChange={(e: { target: { value: SetStateAction<string> } }) => setPhoneNumber(e.target.value)} placeholder="Enter your phone number" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="profile-picture">Profile Picture URL</Label>
-              <Input id="profile-picture" value={profilePicture} onChange={(e) => setProfilePicture(e.target.value)} placeholder="Enter your profile picture URL" />
+              <Input id="profile-picture" value={profilePicture} onChange={(e: { target: { value: SetStateAction<string> } }) => setProfilePicture(e.target.value)} placeholder="Enter your profile picture URL" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
-              <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Enter your bio" />
+              <Textarea id="bio" value={bio} onChange={(e: { target: { value: SetStateAction<string> } }) => setBio(e.target.value)} placeholder="Enter your bio" />
             </div>
             <div className="space-y-2">
               <Label>Gender</Label>
               <RadioGroup value={gender} onValueChange={setGender}>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="male" id="male" />
+                  <RadioGroupItem value="male" id="male" children={undefined} />
                   <Label htmlFor="male">Male</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="female" id="female" />
+                  <RadioGroupItem value="female" id="female" children={undefined} />
                   <Label htmlFor="female">Female</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="other" id="other" />
+                  <RadioGroupItem value="other" id="other" children={undefined} />
                   <Label htmlFor="other">Other</Label>
                 </div>
               </RadioGroup>
             </div>
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
-              <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Enter your country" />
+              <Input id="country" value={country} onChange={(e: { target: { value: SetStateAction<string> } }) => setCountry(e.target.value)} placeholder="Enter your country" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
-              <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Enter your city" />
+              <Input id="city" value={city} onChange={(e: { target: { value: SetStateAction<string> } }) => setCity(e.target.value)} placeholder="Enter your city" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="age">Age</Label>
-              <Input id="age" value={age} onChange={(e) => setAge(e.target.value)} placeholder="Enter your age" type="number" />
+              <Input id="age" value={age} onChange={(e: { target: { value: SetStateAction<string> } }) => setAge(e.target.value)} placeholder="Enter your age" type="number" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="search-purpose">Search Purpose</Label>
               <Select value={searchPurpose} onValueChange={setSearchPurpose}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select search purpose" />
+                <SelectValue>
+                    {searchPurpose ? searchPurpose : <span className="text-muted-foreground">Select search purpose</span>}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="chat">Chat</SelectItem>
@@ -201,36 +203,38 @@ export default function VideoChatApp() {
                 <Label>Gender</Label>
                 <RadioGroup value={gender} onValueChange={setGender}>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="male" id="male" />
+                    <RadioGroupItem value="male" id="male" children={undefined} />
                     <Label htmlFor="male">Male</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="female" id="female" />
+                    <RadioGroupItem value="female" id="female" children={undefined} />
                     <Label htmlFor="female">Female</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="other" id="other" />
+                    <RadioGroupItem value="other" id="other" children={undefined} />
                     <Label htmlFor="other">Other</Label>
                   </div>
                 </RadioGroup>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="country">Country</Label>
-                <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Enter country" />
+                <Input id="country" value={country} onChange={(e: { target: { value: SetStateAction<string> } }) => setCountry(e.target.value)} placeholder="Enter country" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="city">City</Label>
-                <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Enter city" />
+                <Input id="city" value={city} onChange={(e: { target: { value: SetStateAction<string> } }) => setCity(e.target.value)} placeholder="Enter city" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="age">Age</Label>
-                <Input id="age" value={age} onChange={(e) => setAge(e.target.value)} placeholder="Enter age" type="number" />
+                <Input id="age" value={age} onChange={(e: { target: { value: SetStateAction<string> } }) => setAge(e.target.value)} placeholder="Enter age" type="number" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="search-purpose">Search Purpose</Label>
                 <Select value={searchPurpose} onValueChange={setSearchPurpose}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select search purpose" />
+                  <SelectValue>
+                    {searchPurpose ? searchPurpose : <span className="text-muted-foreground">Select search purpose</span>}
+                  </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="chat">Chat</SelectItem>

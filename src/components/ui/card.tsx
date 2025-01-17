@@ -6,32 +6,32 @@ export const Card = ({ children, className = '' }: { children: React.ReactNode, 
   </div>
 )
 
-export const CardHeader = ({ children }: { children: React.ReactNode }) => (
-  <div className="mb-4">
+export const CardHeader = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
+  <div className={`mb-4 ${className}`}>
     {children}
   </div>
 )
 
-export const CardTitle = ({ children }: { children: React.ReactNode }) => (
-  <h3 className="text-lg font-bold">
+export const CardTitle = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
+  <h3 className={`text-lg font-bold ${className}`}>
     {children}
   </h3>
 )
 
-export const CardDescription = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-gray-500">
+export const CardDescription = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
+  <p className={`text-sm text-gray-600 ${className}`}>
     {children}
   </p>
 )
 
-export const CardContent = ({ children }: { children: React.ReactNode }) => (
-  <div className="mb-4">
+export const CardContent = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
+  <div className={`mb-4 ${className}`}>
     {children}
   </div>
 )
 
-export const CardFooter = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex justify-end">
+export const CardFooter = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
+  <div className={`flex justify-end ${className}`}>
     {children}
   </div>
 )

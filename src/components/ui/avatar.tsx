@@ -11,7 +11,7 @@ export const AvatarImage = ({ src }: { src: string }) => (
 )
 
 export const AvatarFallback = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-500">
+  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
     {children}
   </div>
 )
