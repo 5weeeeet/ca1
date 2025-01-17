@@ -162,12 +162,12 @@ export default function VideoChatApp() {
                     {searchPurpose ? searchPurpose : <span className="text-muted-foreground">Select search purpose</span>}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                {/* <SelectContent>
                   <SelectItem value="chat">Chat</SelectItem>
                   <SelectItem value="make-friends">Make Friends</SelectItem>
                   <SelectItem value="network">Network</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
+                </SelectContent> */}
               </Select>
             </div>
           </CardContent>
@@ -236,12 +236,12 @@ export default function VideoChatApp() {
                     {searchPurpose ? searchPurpose : <span className="text-muted-foreground">Select search purpose</span>}
                   </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="chat">Chat</SelectItem>
+                  {/* <SelectContent> */}
+                    {/* <SelectItem value="chat">Chat</SelectItem>
                     <SelectItem value="make-friends">Make Friends</SelectItem>
                     <SelectItem value="network">Network</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
+                    <SelectItem value="other">Other</SelectItem> */}
+                  {/* </SelectContent> */}
                 </Select>
               </div>
             </CardContent>
