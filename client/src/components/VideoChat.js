@@ -88,18 +88,23 @@ const VideoChat = ({ filters, isSearching }) => {
   useEffect(() => {
     // Установка WebSocket соединения
     const ws = new WebSocket('ws://localhost:8080');
-    let isMounted = true;
 
     const connectionTimeout = setTimeout(() => {
       if (ws.readyState !== WebSocket.OPEN) {
         console.error('WebSocket connection timeout.');
         ws.close();
       }
+      else {
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then((stream) => {
+          localVideoRef.current.srcObject = stream;
+        })
+        .catch((error) => console.error('Error accessing media devices:', error));
+      }
     }, 5000); // Таймаут 5 секунд для подключения
 
     ws.onopen = () => {
       clearTimeout(connectionTimeout); // Очистка таймера при успешном подключении
-      let isMounted = true;
       setSocket(ws);
     };
 
@@ -117,15 +122,6 @@ const VideoChat = ({ filters, isSearching }) => {
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-    let isMounted = isMounted ?? false;
-    // Получение доступа к камере и микрофону
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        if (isMounted) {
-          localVideoRef.current.srcObject = stream;
-        }
-      })
-      .catch((error) => console.error('Error accessing media devices:', error));
 
     return () => {
       isMounted = false;
