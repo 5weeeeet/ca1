@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { createPeerConnection } from '../utils/webrtc';
 import Pusher from 'pusher-js';
 
@@ -6,8 +6,8 @@ const VideoChat = React.memo(() => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
     const pc = createPeerConnection();
     peerConnectionRef.current = pc;
@@ -46,7 +46,6 @@ const VideoChat = React.memo(() => {
     channel.trigger('client-answer', { answer });
   }, []);
 
-  // Подключение к Pusher
   useEffect(() => {
     const pusher = new Pusher('d1f91a7cd0838753276e', {
       cluster: 'eu',
@@ -55,7 +54,22 @@ const VideoChat = React.memo(() => {
 
     const channel = pusher.subscribe('video-chat-channel');
 
-    // Слушаем клиентские события
+    channel.bind('client-search', (data) => {
+      console.log('Получено событие client-search:', data);
+      if (data.isSearching) {
+        setIsSearching(true);
+        channel.trigger('client-search-response', { isSearching: true });
+      }
+    });
+
+    channel.bind('client-search-response', (data) => {
+      if (data.isSearching && isSearching) {
+        console.log('Найден собеседник');
+        setIsSearching(false);
+        // Здесь можно начать обмен offer/answer
+      }
+    });
+
     channel.bind('client-offer', async (data) => {
       console.log('Получен offer:', data.offer);
       await handleOffer(data.offer);
@@ -79,9 +93,8 @@ const VideoChat = React.memo(() => {
       pusher.unsubscribe('video-chat-channel');
       pusher.disconnect();
     };
-  }, [handleOffer]);
+  }, [handleOffer, isSearching]);
 
-  // Получение медиапотока
   useEffect(() => {
     let stream = null;
 
@@ -92,7 +105,10 @@ const VideoChat = React.memo(() => {
       stream = mediaStream;
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
+        console.log('Медиапоток захвачен');
       }
+    }).catch(error => {
+      console.error('Ошибка захвата медиапотока:', error);
     });
 
     return () => {
