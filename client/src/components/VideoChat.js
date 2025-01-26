@@ -1,25 +1,20 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { createPeerConnection } from '../utils/webrtc';
 
-const VideoChat = React.memo(({ filters, isSearching }) => {
+const VideoChat = React.memo(() => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const [peerConnection, setPeerConnection] = useState(null);
-  const [socket, setSocket] = useState(null);
+  const peerConnectionRef = useRef(null); // Заменяем useState на useRef
+  const socketRef = useRef(null); // Храним сокет в ref вместо useState
 
+  // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
-    if (!socket) return;
-
-    if (peerConnection) {
-      peerConnection.close();
-    }
-
     const pc = createPeerConnection();
-    setPeerConnection(pc);
+    peerConnectionRef.current = pc; // Сохраняем соединение в ref
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socket) {
-        socket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+      if (event.candidate && socketRef.current) {
+        socketRef.current.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
       }
     };
 
@@ -29,7 +24,7 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
       }
     };
 
-    const stream = localVideoRef.current ? localVideoRef.current.srcObject : null;
+    const stream = localVideoRef.current?.srcObject;
     if (stream) {
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
     }
@@ -37,86 +32,64 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    if (socket) {
-      socket.send(JSON.stringify({ type: 'answer', answer }));
+    
+    if (socketRef.current) {
+      socketRef.current.send(JSON.stringify({ type: 'answer', answer }));
     }
-  }, [socket, peerConnection]);
-
-  const handleAnswer = useCallback(async (answer) => {
-    if (peerConnection) {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    }
-  }, [peerConnection]);
-
-  const handleCandidate = useCallback(async (candidate) => {
-    if (peerConnection) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    }
-  }, [peerConnection]);
-
-  const startSearching = useCallback(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'search', filters }));
-      console.log('Search started');
-    } else {
-      console.error('WebSocket is not open');
-    }
-  }, [socket, filters]);
-
-  useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
-    setSocket(ws);
-
-    ws.onmessage = (message) => {
-      try {
-        const data = JSON.parse(message.data);
-        console.log('Received message:', data);
-
-        if (data.type === 'offer') {
-          handleOffer(data.offer);
-        } else if (data.type === 'answer') {
-          handleAnswer(data.answer);
-        } else if (data.type === 'candidate') {
-          handleCandidate(data.candidate);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, [handleOffer, handleAnswer, handleCandidate]);
-
-  useEffect(() => {
-    const initLocalStream = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Error accessing media devices:', error);
-      }
-    };
-
-    initLocalStream();
   }, []);
 
+  // Подключение к WebSocket серверу
   useEffect(() => {
-    if (isSearching) {
-      startSearching();
-    } else {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'stop' }));
+    const ws = new WebSocket('ws://localhost:8080');
+    socketRef.current = ws; // Сохраняем сокет в ref
+
+    const handleMessage = async (message) => {
+      try {
+        const data = JSON.parse(message.data);
+        if (data.type === 'offer') {
+          await handleOffer(data.offer);
+        }
+        // Добавьте обработку answer и candidate при необходимости
+      } catch (error) {
+        console.error('Error parsing message:', error);
       }
-      if (peerConnection) {
-        peerConnection.close();
-        setPeerConnection(null);
+    };
+
+    ws.addEventListener('message', handleMessage);
+
+    return () => {
+      ws.removeEventListener('message', handleMessage);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
       }
-    }
-  }, [isSearching, startSearching, socket, peerConnection]);
+      
+      // Очистка peer connection
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+    };
+  }, [handleOffer]);
+
+  // Получение медиапотока (остается без изменений)
+  useEffect(() => {
+    let stream = null;
+
+    navigator.mediaDevices.getUserMedia({ 
+      video: { width: 640, height: 480 }, 
+      audio: true 
+    }).then(mediaStream => {
+      stream = mediaStream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+    });
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
 
   return (
     <div className="video-chat">
