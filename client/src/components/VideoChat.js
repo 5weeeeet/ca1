@@ -54,11 +54,42 @@ const VideoChat = ({ filters, isSearching }) => {
     }
   }, [socket, filters]);
 
+  // useEffect(() => {
+  //   // Установка WebSocket соединения
+  //   const ws = new WebSocket('ws://localhost:8080');
+  //   setSocket(ws);
+
+  //   ws.onmessage = (message) => {
+  //     const data = JSON.parse(message.data);
+  //     if (data.type === 'offer') {
+  //       handleOffer(data.offer);
+  //     } else if (data.type === 'answer') {
+  //       handleAnswer(data.answer);
+  //     } else if (data.type === 'candidate') {
+  //       handleCandidate(data.candidate);
+  //     }
+  //   };
+
+  //   let isMounted = true;
+  //   navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+  //     .then((stream) => {
+  //       if (isMounted) {
+  //         localVideoRef.current.srcObject = stream;
+  //       }
+  //     })
+  //     .catch((error) => console.error('Error accessing media devices:', error));
+
+  //   return () => {
+  //     isMounted = false;
+  //     ws.close();
+  //   };
+  // }, [handleOffer, handleAnswer, handleCandidate]);
+  
   useEffect(() => {
-    // Установка WebSocket соединения
+    // Создаём WebSocket соединение один раз
     const ws = new WebSocket('ws://localhost:8080');
     setSocket(ws);
-
+  
     ws.onmessage = (message) => {
       const data = JSON.parse(message.data);
       if (data.type === 'offer') {
@@ -69,22 +100,17 @@ const VideoChat = ({ filters, isSearching }) => {
         handleCandidate(data.candidate);
       }
     };
-
-    let isMounted = true;
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        if (isMounted) {
-          localVideoRef.current.srcObject = stream;
-        }
-      })
-      .catch((error) => console.error('Error accessing media devices:', error));
-
+  
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  
+    // Возвращаем функцию очистки для закрытия соединения
     return () => {
-      isMounted = false;
       ws.close();
     };
-  }, [handleOffer, handleAnswer, handleCandidate]);
-
+    // Зависимости убраны, чтобы соединение создавалось один раз
+  }, [handleOffer, handleAnswer, handleCandidate]); // Пустой массив зависимостей означает, что эффект выполняется только один раз.
   useEffect(() => {
     if (isSearching) {
       startSearching();
