@@ -49,12 +49,22 @@ const VideoChat = React.memo(() => {
 
     const channel = pusherRef.current.subscribe('video-chat-channel');
 
+    // Логирование подписки на канал
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log('Успешно подключен к каналу video-chat-channel');
+    });
+
+    channel.bind('pusher:subscription_error', (error) => {
+      console.error('Ошибка подключения к каналу:', error);
+    });
+
     // Обработка события "client-search"
     channel.bind('client-search', (data) => {
       console.log('Получено событие client-search:', data);
       if (data.isSearching) {
         setIsSearching(true);
         channel.trigger('client-search-response', { isSearching: true });
+        console.log('Отправлено событие client-search-response');
       }
     });
 
