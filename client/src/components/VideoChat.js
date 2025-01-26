@@ -63,10 +63,36 @@ const VideoChat = React.memo(() => {
     });
 
     channel.bind('client-search-response', (data) => {
+      console.log('Получено событие client-search-response:', data);
       if (data.isSearching && isSearching) {
         console.log('Найден собеседник');
         setIsSearching(false);
-        // Здесь можно начать обмен offer/answer
+
+        // Создаем PeerConnection и отправляем offer
+        const pc = createPeerConnection();
+        peerConnectionRef.current = pc;
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            channel.trigger('client-candidate', { candidate: event.candidate });
+          }
+        };
+
+        pc.ontrack = (event) => {
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = event.streams[0];
+          }
+        };
+
+        const stream = localVideoRef.current?.srcObject;
+        if (stream) {
+          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        }
+
+        pc.createOffer().then(offer => {
+          pc.setLocalDescription(offer);
+          channel.trigger('client-offer', { offer });
+        });
       }
     });
 
