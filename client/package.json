@@ -9,7 +9,8 @@
         "socket.io-client": "^4.5.4",
         "web-vitals": "^2.1.4",
         "webrtc-adapter": "^8.1.1",
-        "pusher-js": "^8.2.0"
+        "pusher-js": "^8.2.0",
+        "pusher": "^5.2.0"
     },
     "scripts": {
         "start": "react-scripts start",
