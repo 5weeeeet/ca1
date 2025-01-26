@@ -14,7 +14,7 @@ const useWebSocketWithReconnect = (url, reconnectInterval = 5000, handlers = {})
       ws.onopen = () => {
         console.log('WebSocket connection established');
         clearTimeout(timeout);
-        handlers.onOpen?.();
+        // handlers.onOpen?.();
       };
 
       ws.onmessage = (message) => {
