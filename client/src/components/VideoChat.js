@@ -1,21 +1,20 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { createPeerConnection } from '../utils/webrtc';
 
-const VideoChat = React.memo(({ filters, isSearching }) => {
+const VideoChat = React.memo(() => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const [peerConnection, setPeerConnection] = useState(null);
-  const [socket, setSocket] = useState(null);
+  const peerConnectionRef = useRef(null); // Заменяем useState на useRef
+  const socketRef = useRef(null); // Храним сокет в ref вместо useState
 
   // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
-    if (!socket) return;
     const pc = createPeerConnection();
-    setPeerConnection(pc);
+    peerConnectionRef.current = pc; // Сохраняем соединение в ref
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socket) {
-        socket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+      if (event.candidate && socketRef.current) {
+        socketRef.current.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
       }
     };
 
@@ -33,30 +32,59 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    socket.send(JSON.stringify({ type: 'answer', answer }));
-  }, [socket]);
+    
+    if (socketRef.current) {
+      socketRef.current.send(JSON.stringify({ type: 'answer', answer }));
+    }
+  }, []);
 
-  // Остальные обработчики остаются без изменений
-  // ... 
-
-  // Получение доступа к камере и микрофону (ИСПРАВЛЕННЫЙ ЭФФЕКТ)
+  // Подключение к WebSocket серверу
   useEffect(() => {
-    let stream = null; // Сохраняем поток в переменную
+    const ws = new WebSocket('ws://localhost:8080');
+    socketRef.current = ws; // Сохраняем сокет в ref
+
+    const handleMessage = async (message) => {
+      try {
+        const data = JSON.parse(message.data);
+        if (data.type === 'offer') {
+          await handleOffer(data.offer);
+        }
+        // Добавьте обработку answer и candidate при необходимости
+      } catch (error) {
+        console.error('Error parsing message:', error);
+      }
+    };
+
+    ws.addEventListener('message', handleMessage);
+
+    return () => {
+      ws.removeEventListener('message', handleMessage);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+      
+      // Очистка peer connection
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+    };
+  }, [handleOffer]);
+
+  // Получение медиапотока (остается без изменений)
+  useEffect(() => {
+    let stream = null;
 
     navigator.mediaDevices.getUserMedia({ 
       video: { width: 640, height: 480 }, 
       audio: true 
-    })
-    .then(mediaStream => {
-      stream = mediaStream; // Сохраняем в переменную эффекта
+    }).then(mediaStream => {
+      stream = mediaStream;
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-    })
-    .catch(error => console.error('Error accessing media devices:', error));
+    });
 
     return () => {
-      // Используем сохраненную переменную вместо localVideoRef.current
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
