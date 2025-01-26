@@ -1,41 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Pusher from 'pusher-js';
 
 const SearchControls = ({ setIsSearching }) => {
   const [isActive, setIsActive] = useState(false);
+  const pusherRef = useRef(null); // Используем useRef для хранения экземпляра Pusher
 
   useEffect(() => {
-    const pusher = new Pusher('d1f91a7cd0838753276e', {
+    // Инициализация Pusher
+    pusherRef.current = new Pusher('d1f91a7cd0838753276e', {
       cluster: 'eu',
       forceTLS: true,
     });
 
-    const channel = pusher.subscribe('video-chat-channel');
-    channel.trigger('client-search', { isSearching: newState });
-    console.log('Отправлено событие client-search:', { isSearching: newState });
-    
+    const channel = pusherRef.current.subscribe('video-chat-channel');
+
+    // Обработка события "found"
     channel.bind('found', (data) => {
       console.log('Собеседник найден:', data);
       setIsSearching(false);
       setIsActive(false);
     });
 
+    // Очистка при размонтировании компонента
     return () => {
-      pusher.unsubscribe('video-chat-channel');
-      pusher.disconnect();
+      pusherRef.current.unsubscribe('video-chat-channel');
+      pusherRef.current.disconnect();
     };
   }, [setIsSearching]);
 
   const handleSearch = () => {
-    const newState = !isActive;
+    const newState = !isActive; // Определяем новое состояние
     setIsActive(newState);
     setIsSearching(newState);
 
-    const pusher = new Pusher('d1f91a7cd0838753276e', {
-      cluster: 'eu',
-      forceTLS: true,
-    });
-    const channel = pusher.subscribe('video-chat-channel');
+    // Отправляем событие "client-search"
+    const channel = pusherRef.current.subscribe('video-chat-channel');
     channel.trigger('client-search', { isSearching: newState });
     console.log('Отправлено событие client-search:', { isSearching: newState });
   };
