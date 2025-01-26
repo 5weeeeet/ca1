@@ -47,3 +47,5 @@ coverage/
 
 # Игнорировать файлы конфигурации
 *.config.js
+# Local Netlify folder
+.netlify
