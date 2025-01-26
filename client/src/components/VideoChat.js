@@ -106,7 +106,7 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
         ws.close();
       }
     };
-  }, [[handleOffer, handleAnswer, handleCandidate]]);
+  }, [handleOffer, handleAnswer, handleCandidate]);
 
   return socket;
 };
