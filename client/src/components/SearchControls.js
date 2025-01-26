@@ -4,8 +4,15 @@ const SearchControls = ({ setIsSearching }) => {
   const [isActive, setIsActive] = useState(false);
 
   const handleSearch = () => {
-    setIsActive(!isActive);
-    setIsSearching(!isActive);
+    if (typeof setIsSearching === 'function') {
+      setIsActive(prev => {
+        const newState = !prev;
+        setIsSearching(newState); // Синхронизируем состояния
+        return newState;
+      });
+    } else {
+      console.error('setIsSearching is not a function');
+    }
   };
 
   return (

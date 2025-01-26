@@ -12,7 +12,6 @@ const Filters = ({ setFilters }) => {
   return (
     <div className="filters">
       <select value={gender} onChange={(e) => setGender(e.target.value)}>
-        <option value="">Пол</option>
         <option value="male">Мужской</option>
         <option value="female">Женский</option>
       </select>
