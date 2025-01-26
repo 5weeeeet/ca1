@@ -55,12 +55,6 @@ const VideoChat = React.memo(() => {
 
     const channel = pusher.subscribe('video-chat-channel');
 
-    // Слушаем событие "found" для уведомления о найденном собеседнике
-    channel.bind('found', (data) => {
-      console.log('Собеседник найден:', data);
-      // Здесь можно начать обмен offer/answer
-    });
-
     // Слушаем клиентские события
     channel.bind('client-offer', async (data) => {
       console.log('Получен offer:', data.offer);
