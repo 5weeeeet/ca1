@@ -7,7 +7,7 @@ const VideoChat = React.memo(() => {
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const [isSearching, setIsSearching] = useState(false);
-  const pusherRef = useRef(null); // Используем useRef для хранения экземпляра Pusher
+  const pusherRef = useRef(null);
 
   // Обработка offer
   const handleOffer = useCallback(async (offer) => {
@@ -16,7 +16,7 @@ const VideoChat = React.memo(() => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        const channel = pusherRef.current.subscribe('video-chat-channel');
+        const channel = pusherRef.current.subscribe('private-video-chat-channel');
         channel.trigger('client-candidate', { candidate: event.candidate });
       }
     };
@@ -36,7 +36,7 @@ const VideoChat = React.memo(() => {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-    const channel = pusherRef.current.subscribe('video-chat-channel');
+    const channel = pusherRef.current.subscribe('private-video-chat-channel');
     channel.trigger('client-answer', { answer });
   }, []);
 
@@ -45,13 +45,14 @@ const VideoChat = React.memo(() => {
     pusherRef.current = new Pusher('d1f91a7cd0838753276e', {
       cluster: 'eu',
       forceTLS: true,
+      authEndpoint: '/pusher/auth', // Укажите ваш endpoint для авторизации
     });
 
-    const channel = pusherRef.current.subscribe('video-chat-channel');
+    const channel = pusherRef.current.subscribe('private-video-chat-channel');
 
     // Логирование подписки на канал
     channel.bind('pusher:subscription_succeeded', () => {
-      console.log('Успешно подключен к каналу video-chat-channel');
+      console.log('Успешно подключен к каналу private-video-chat-channel');
     });
 
     channel.bind('pusher:subscription_error', (error) => {
@@ -145,10 +146,10 @@ const VideoChat = React.memo(() => {
 
     // Очистка при размонтировании компонента
     return () => {
-      pusherRef.current.unsubscribe('video-chat-channel');
+      pusherRef.current.unsubscribe('private-video-chat-channel');
       pusherRef.current.disconnect();
     };
-  }, [isSearching, handleOffer]); // Добавляем handleOffer в массив зависимостей
+  }, [isSearching, handleOffer]);
 
   // Захват медиапотока
   useEffect(() => {
