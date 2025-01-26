@@ -1,0 +1,49 @@
+# Игнорировать папку node_modules (зависимости)
+node_modules/
+
+# Игнорировать файлы сборки
+build/
+dist/
+
+# Игнорировать файлы окружения
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Игнорировать логи
+*.log
+logs/
+
+# Игнорировать файлы IDE
+.vscode/
+.idea/
+
+# Игнорировать временные файлы
+*.tmp
+*.temp
+
+# Игнорировать файлы операционной системы
+.DS_Store
+Thumbs.db
+
+# Игнорировать файлы npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Игнорировать файлы пакетных менеджеров
+package-lock.json
+yarn.lock
+
+# Игнорировать файлы тестов
+coverage/
+.nyc_output/
+
+# Игнорировать файлы ESLint и Prettier
+.eslintcache
+.prettierignore
+
+# Игнорировать файлы конфигурации
+*.config.js
