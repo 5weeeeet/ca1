@@ -9,7 +9,38 @@ const VideoChat = React.memo(() => {
   const [isSearching, setIsSearching] = useState(false);
   const pusherRef = useRef(null); // Используем useRef для хранения экземпляра Pusher
 
-  // Инициализация Pusher
+  // Обработка offer
+  const handleOffer = useCallback(async (offer) => {
+    const pc = createPeerConnection();
+    peerConnectionRef.current = pc;
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        const channel = pusherRef.current.subscribe('video-chat-channel');
+        channel.trigger('client-candidate', { candidate: event.candidate });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    const stream = localVideoRef.current?.srcObject;
+    if (stream) {
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    }
+
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    const channel = pusherRef.current.subscribe('video-chat-channel');
+    channel.trigger('client-answer', { answer });
+  }, []);
+
+  // Инициализация Pusher и подписка на события
   useEffect(() => {
     pusherRef.current = new Pusher('d1f91a7cd0838753276e', {
       cluster: 'eu',
@@ -24,7 +55,6 @@ const VideoChat = React.memo(() => {
       if (data.isSearching) {
         setIsSearching(true);
         channel.trigger('client-search-response', { isSearching: true });
-        console.log('Отправлено событие client-search-response');
       }
     });
 
@@ -41,14 +71,12 @@ const VideoChat = React.memo(() => {
 
         pc.onicecandidate = (event) => {
           if (event.candidate) {
-            console.log('Отправляем ICE candidate:', event.candidate);
             channel.trigger('client-candidate', { candidate: event.candidate });
           }
         };
 
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
-            console.log('Получен удаленный поток');
             remoteVideoRef.current.srcObject = event.streams[0];
           }
         };
@@ -60,12 +88,8 @@ const VideoChat = React.memo(() => {
 
         pc.createOffer()
           .then(offer => {
-            console.log('Создан offer:', offer);
-            return pc.setLocalDescription(offer);
-          })
-          .then(() => {
-            console.log('Отправляем offer:', pc.localDescription);
-            channel.trigger('client-offer', { offer: pc.localDescription });
+            pc.setLocalDescription(offer);
+            channel.trigger('client-offer', { offer });
           })
           .catch(error => {
             console.error('Ошибка при создании offer:', error);
@@ -114,38 +138,7 @@ const VideoChat = React.memo(() => {
       pusherRef.current.unsubscribe('video-chat-channel');
       pusherRef.current.disconnect();
     };
-  }, [isSearching]);
-
-  // Обработка offer
-  const handleOffer = useCallback(async (offer) => {
-    const pc = createPeerConnection();
-    peerConnectionRef.current = pc;
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        const channel = pusherRef.current.subscribe('video-chat-channel');
-        channel.trigger('client-candidate', { candidate: event.candidate });
-      }
-    };
-
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    const stream = localVideoRef.current?.srcObject;
-    if (stream) {
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
-    }
-
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    const channel = pusherRef.current.subscribe('video-chat-channel');
-    channel.trigger('client-answer', { answer });
-  }, []);
+  }, [isSearching, handleOffer]); // Добавляем handleOffer в массив зависимостей
 
   // Захват медиапотока
   useEffect(() => {
