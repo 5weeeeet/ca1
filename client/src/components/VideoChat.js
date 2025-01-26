@@ -117,7 +117,7 @@ const VideoChat = ({ filters, isSearching }) => {
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-
+    let isMounted = isMounted ?? false;
     // Получение доступа к камере и микрофону
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then((stream) => {
