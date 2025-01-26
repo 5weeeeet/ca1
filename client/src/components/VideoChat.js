@@ -86,10 +86,23 @@ const VideoChat = ({ filters, isSearching }) => {
   // }, [handleOffer, handleAnswer, handleCandidate]);
   
   useEffect(() => {
-    // Создаём WebSocket соединение один раз
+    // Установка WebSocket соединения
     const ws = new WebSocket('ws://localhost:8080');
-    setSocket(ws);
-  
+    let isMounted = true;
+
+    const connectionTimeout = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket connection timeout.');
+        ws.close();
+      }
+    }, 5000); // Таймаут 5 секунд для подключения
+
+    ws.onopen = () => {
+      clearTimeout(connectionTimeout); // Очистка таймера при успешном подключении
+      let isMounted = true;
+      setSocket(ws);
+    };
+
     ws.onmessage = (message) => {
       const data = JSON.parse(message.data);
       if (data.type === 'offer') {
@@ -100,17 +113,27 @@ const VideoChat = ({ filters, isSearching }) => {
         handleCandidate(data.candidate);
       }
     };
-  
+
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-  
-    // Возвращаем функцию очистки для закрытия соединения
+
+    // Получение доступа к камере и микрофону
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        if (isMounted) {
+          localVideoRef.current.srcObject = stream;
+        }
+      })
+      .catch((error) => console.error('Error accessing media devices:', error));
+
     return () => {
+      isMounted = false;
+      clearTimeout(connectionTimeout);
       ws.close();
     };
-    // Зависимости убраны, чтобы соединение создавалось один раз
-  }, [handleOffer, handleAnswer, handleCandidate]); // Пустой массив зависимостей означает, что эффект выполняется только один раз.
+  }, [handleOffer, handleAnswer, handleCandidate]);
+  
   useEffect(() => {
     if (isSearching) {
       startSearching();
