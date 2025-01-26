@@ -45,7 +45,7 @@ const VideoChat = React.memo(() => {
     pusherRef.current = new Pusher('d1f91a7cd0838753276e', {
       cluster: 'eu',
       forceTLS: true,
-      authEndpoint: '/pusher/auth', // Укажите ваш endpoint для авторизации
+      authEndpoint: '/.netlify/functions/pusher-auth', // Укажите ваш endpoint для авторизации
     });
 
     const channel = pusherRef.current.subscribe('private-video-chat-channel');
