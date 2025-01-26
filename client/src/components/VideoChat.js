@@ -7,7 +7,6 @@ const VideoChat = ({ filters, isSearching }) => {
   const [peerConnection, setPeerConnection] = useState(null);
   const [socket, setSocket] = useState(null);
 
-  // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
     const pc = createPeerConnection();
     setPeerConnection(pc);
@@ -23,7 +22,12 @@ const VideoChat = ({ filters, isSearching }) => {
     };
 
     const stream = localVideoRef.current.srcObject;
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    stream.getTracks().forEach((track) => {
+      const senders = pc.getSenders();
+      if (!senders.find((sender) => sender.track === track)) {
+        pc.addTrack(track, stream);
+      }
+    });
 
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
@@ -31,14 +35,12 @@ const VideoChat = ({ filters, isSearching }) => {
     socket.send(JSON.stringify({ type: 'answer', answer }));
   }, [socket]);
 
-  // Функция для обработки ответа (answer)
   const handleAnswer = useCallback(async (answer) => {
     if (peerConnection) {
       await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     }
   }, [peerConnection]);
 
-  // Функция для обработки ICE-кандидатов
   const handleCandidate = useCallback(async (candidate) => {
     if (peerConnection) {
       await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -52,10 +54,59 @@ const VideoChat = ({ filters, isSearching }) => {
     }
   }, [socket, filters]);
 
+  // useEffect(() => {
+  //   // Установка WebSocket соединения
+  //   const ws = new WebSocket('ws://localhost:8080');
+  //   setSocket(ws);
+
+  //   ws.onmessage = (message) => {
+  //     const data = JSON.parse(message.data);
+  //     if (data.type === 'offer') {
+  //       handleOffer(data.offer);
+  //     } else if (data.type === 'answer') {
+  //       handleAnswer(data.answer);
+  //     } else if (data.type === 'candidate') {
+  //       handleCandidate(data.candidate);
+  //     }
+  //   };
+
+  //   let isMounted = true;
+  //   navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+  //     .then((stream) => {
+  //       if (isMounted) {
+  //         localVideoRef.current.srcObject = stream;
+  //       }
+  //     })
+  //     .catch((error) => console.error('Error accessing media devices:', error));
+
+  //   return () => {
+  //     isMounted = false;
+  //     ws.close();
+  //   };
+  // }, [handleOffer, handleAnswer, handleCandidate]);
+  
   useEffect(() => {
-    // Подключаемся к WebSocket серверу
+    // Установка WebSocket соединения
     const ws = new WebSocket('ws://localhost:8080');
-    setSocket(ws);
+
+    const connectionTimeout = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket connection timeout.');
+        ws.close();
+      }
+      else {
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then((stream) => {
+          localVideoRef.current.srcObject = stream;
+        })
+        .catch((error) => console.error('Error accessing media devices:', error));
+      }
+    }, 5000); // Таймаут 5 секунд для подключения
+
+    ws.onopen = () => {
+      clearTimeout(connectionTimeout); // Очистка таймера при успешном подключении
+      setSocket(ws);
+    };
 
     ws.onmessage = (message) => {
       const data = JSON.parse(message.data);
@@ -68,18 +119,17 @@ const VideoChat = ({ filters, isSearching }) => {
       }
     };
 
-    // Получаем доступ к камере и микрофону
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        localVideoRef.current.srcObject = stream;
-      })
-      .catch(error => console.error('Error accessing media devices:', error));
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
 
     return () => {
+      isMounted = false;
+      clearTimeout(connectionTimeout);
       ws.close();
     };
   }, [handleOffer, handleAnswer, handleCandidate]);
-
+  
   useEffect(() => {
     if (isSearching) {
       startSearching();
@@ -88,6 +138,8 @@ const VideoChat = ({ filters, isSearching }) => {
         socket.send(JSON.stringify({ type: 'stop' }));
       }
       if (peerConnection) {
+        peerConnection.ontrack = null;
+        peerConnection.onicecandidate = null;
         peerConnection.close();
         setPeerConnection(null);
       }
