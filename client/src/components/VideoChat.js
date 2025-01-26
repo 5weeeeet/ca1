@@ -38,6 +38,29 @@ const VideoChat = React.memo(() => {
     }
   }, []);
 
+  // Функция для обработки ответа (answer)
+  const handleAnswer = useCallback(async (answer) => {
+    if (peerConnection) {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    }
+  }, [peerConnection]);
+
+  // Функция для обработки ICE-кандидатов
+  const handleCandidate = useCallback(async (candidate) => {
+    if (peerConnection) {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  }, [peerConnection]);
+
+  // Функция для начала поиска
+  const startSearching = useCallback(() => {
+    if (socket) {
+      socket.send(JSON.stringify({ type: 'search', filters }));
+      console.log('Search started'); // Логируем начало поиска
+    }
+  }, [socket, filters]);
+
+
   // Подключение к WebSocket серверу
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:8080');
@@ -90,6 +113,21 @@ const VideoChat = React.memo(() => {
       }
     };
   }, []);
+
+  // Управление поиском
+  useEffect(() => {
+    if (isSearching) {
+      startSearching();
+    } else {
+      if (socket) {
+        socket.send(JSON.stringify({ type: 'stop' }));
+      }
+      if (peerConnection) {
+        peerConnection.close();
+        setPeerConnection(null);
+      }
+    }
+  }, [isSearching, startSearching, socket, peerConnection]);
 
   return (
     <div className="video-chat">
