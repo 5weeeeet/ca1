@@ -60,16 +60,20 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
 
   // Подключение к WebSocket серверу
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
-      ws.onerror = (error) => {
-        console.warn('WebSocket connection error. Reconnecting...');
-        timeout = setTimeout(connect, reconnectInterval);
-      };
+    let ws;
+    let timeout;
+    const reconnectDelay = () => Math.floor(Math.random() * 5000) + 5000;
+
+    const connect = () => {
+      ws = new WebSocket(url);
+      setSocket(ws);
+
       ws.onopen = () => {
         console.log('WebSocket connection established');
         clearTimeout(timeout);
-        setSocket(ws);
+        handlers.onOpen?.();
       };
+
     ws.onmessage = (message) => {
       const data = JSON.parse(message.data);
       if (data.type === 'offer') {
@@ -79,13 +83,35 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
       } else if (data.type === 'candidate') {
         handleCandidate(data.candidate);
       }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        handlers.onError?.(error);
+      };
+
+      ws.onclose = (event) => {
+        console.warn('WebSocket connection closed. Reconnecting...');
+        handlers.onClose?.(event);
+        clearTimeout(timeout);
+        timeout = setTimeout(connect, reconnectDelay());
+      };
     };
+
+    connect();
 
     return () => {
-      ws.close(); // Закрываем WebSocket при размонтировании
+      clearTimeout(timeout);
+      if (ws) {
+        ws.onclose = null; // Prevent triggering the reconnect logic during cleanup
+        ws.close();
+      }
     };
-  }, [handleOffer, handleAnswer, handleCandidate]);
+  }, [[handleOffer, handleAnswer, handleCandidate]]);
 
+  return socket;
+};
+
+  
   // Получение доступа к камере и микрофону
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true })
