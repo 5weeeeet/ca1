@@ -6,7 +6,7 @@ const VideoChat = React.memo(() => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
-  const socketRef = useRef(null);
+//  const socketRef = useRef(null);
 
   // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
