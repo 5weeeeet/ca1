@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createPeerConnection, createOffer, createAnswer } from '../utils/webrtc';
+import { createPeerConnection, createOffer, createAnswer } from '../server/utils/webrtc';
 
 const VideoChat = ({ filters, isSearching }) => {
   const localVideoRef = useRef(null);
