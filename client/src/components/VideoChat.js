@@ -1,20 +1,26 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { createPeerConnection } from '../utils/webrtc';
+import Pusher from 'pusher-js';
 
 const VideoChat = React.memo(() => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const peerConnectionRef = useRef(null); // Заменяем useState на useRef
-  const socketRef = useRef(null); // Храним сокет в ref вместо useState
+  const peerConnectionRef = useRef(null);
+  const socketRef = useRef(null);
 
   // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
     const pc = createPeerConnection();
-    peerConnectionRef.current = pc; // Сохраняем соединение в ref
+    peerConnectionRef.current = pc;
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socketRef.current) {
-        socketRef.current.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+      if (event.candidate) {
+        const pusher = new Pusher('d1f91a7cd0838753276e', {
+          cluster: 'eu',
+          forceTLS: true,
+        });
+        const channel = pusher.subscribe('video-chat-channel');
+        channel.trigger('client-candidate', { candidate: event.candidate });
       }
     };
 
@@ -32,45 +38,50 @@ const VideoChat = React.memo(() => {
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    
-    if (socketRef.current) {
-      socketRef.current.send(JSON.stringify({ type: 'answer', answer }));
-    }
+
+    const pusher = new Pusher('d1f91a7cd0838753276e', {
+      cluster: 'eu',
+      forceTLS: true,
+    });
+    const channel = pusher.subscribe('video-chat-channel');
+    channel.trigger('client-answer', { answer });
   }, []);
 
-  // Подключение к WebSocket серверу
+  // Подключение к Pusher
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
-    socketRef.current = ws; // Сохраняем сокет в ref
+    const pusher = new Pusher('d1f91a7cd0838753276e', {
+      cluster: 'eu',
+      forceTLS: true,
+    });
 
-    const handleMessage = async (message) => {
-      try {
-        const data = JSON.parse(message.data);
-        if (data.type === 'offer') {
-          await handleOffer(data.offer);
-        }
-        // Добавьте обработку answer и candidate при необходимости
-      } catch (error) {
-        console.error('Error parsing message:', error);
+    const channel = pusher.subscribe('video-chat-channel');
+
+    channel.bind('offer', async (data) => {
+      console.log('Получен offer:', data.offer);
+      await handleOffer(data.offer);
+    });
+
+    channel.bind('answer', async (data) => {
+      console.log('Получен answer:', data.answer);
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
       }
-    };
+    });
 
-    ws.addEventListener('message', handleMessage);
+    channel.bind('candidate', async (data) => {
+      console.log('Получен candidate:', data.candidate);
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    });
 
     return () => {
-      ws.removeEventListener('message', handleMessage);
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-      
-      // Очистка peer connection
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.close();
-      }
+      pusher.unsubscribe('video-chat-channel');
+      pusher.disconnect();
     };
   }, [handleOffer]);
 
-  // Получение медиапотока (остается без изменений)
+  // Получение медиапотока
   useEffect(() => {
     let stream = null;
 
