@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPeerConnection } from '../utils/webrtc';
 
 const VideoChat = ({ filters, isSearching }) => {
@@ -6,6 +6,51 @@ const VideoChat = ({ filters, isSearching }) => {
   const remoteVideoRef = useRef(null);
   const [peerConnection, setPeerConnection] = useState(null);
   const [socket, setSocket] = useState(null);
+
+  // Функция для обработки предложения (offer)
+  const handleOffer = useCallback(async (offer) => {
+    const pc = createPeerConnection();
+    setPeerConnection(pc);
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+      }
+    };
+
+    pc.ontrack = (event) => {
+      remoteVideoRef.current.srcObject = event.streams[0];
+    };
+
+    const stream = localVideoRef.current.srcObject;
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.send(JSON.stringify({ type: 'answer', answer }));
+  }, [socket]);
+
+  // Функция для обработки ответа (answer)
+  const handleAnswer = useCallback(async (answer) => {
+    if (peerConnection) {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    }
+  }, [peerConnection]);
+
+  // Функция для обработки ICE-кандидатов
+  const handleCandidate = useCallback(async (candidate) => {
+    if (peerConnection) {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  }, [peerConnection]);
+
+  // Функция для начала поиска
+  const startSearching = useCallback(() => {
+    if (socket) {
+      socket.send(JSON.stringify({ type: 'search', filters }));
+    }
+  }, [socket, filters]);
 
   useEffect(() => {
     // Подключаемся к WebSocket серверу
@@ -33,10 +78,12 @@ const VideoChat = ({ filters, isSearching }) => {
     return () => {
       ws.close();
     };
-  }, []);
+  }, [handleOffer, handleAnswer, handleCandidate]);
 
   useEffect(() => {
-    const stopSearching = () => {
+    if (isSearching) {
+      startSearching();
+    } else {
       if (socket) {
         socket.send(JSON.stringify({ type: 'stop' }));
       }
@@ -44,51 +91,8 @@ const VideoChat = ({ filters, isSearching }) => {
         peerConnection.close();
         setPeerConnection(null);
       }
-    };
-
-    if (isSearching) {
-      startSearching();
-    } else {
-      stopSearching();
     }
-  }, [isSearching, socket, peerConnection]); // Добавлены зависимости
-
-  const startSearching = () => {
-    if (socket) {
-      socket.send(JSON.stringify({ type: 'search', filters }));
-    }
-  };
-
-  const handleOffer = async (offer) => {
-    const pc = createPeerConnection();
-    setPeerConnection(pc);
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-      }
-    };
-
-    pc.ontrack = (event) => {
-      remoteVideoRef.current.srcObject = event.streams[0];
-    };
-
-    const stream = localVideoRef.current.srcObject;
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.send(JSON.stringify({ type: 'answer', answer }));
-  };
-
-  const handleAnswer = async (answer) => {
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-  };
-
-  const handleCandidate = async (candidate) => {
-    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-  };
+  }, [isSearching, startSearching, socket, peerConnection]);
 
   return (
     <div className="video-chat">
