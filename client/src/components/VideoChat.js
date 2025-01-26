@@ -7,9 +7,13 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
   const [peerConnection, setPeerConnection] = useState(null);
   const [socket, setSocket] = useState(null);
 
-  // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
     if (!socket) return;
+
+    if (peerConnection) {
+      peerConnection.close();
+    }
+
     const pc = createPeerConnection();
     setPeerConnection(pc);
 
@@ -36,31 +40,29 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
     if (socket) {
       socket.send(JSON.stringify({ type: 'answer', answer }));
     }
-  }, [socket]);
+  }, [socket, peerConnection]);
 
-  // Функция для обработки ответа (answer)
   const handleAnswer = useCallback(async (answer) => {
     if (peerConnection) {
       await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     }
   }, [peerConnection]);
 
-  // Функция для обработки ICE-кандидатов
   const handleCandidate = useCallback(async (candidate) => {
     if (peerConnection) {
       await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     }
   }, [peerConnection]);
 
-  // Функция для начала поиска
   const startSearching = useCallback(() => {
-    if (socket) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'search', filters }));
-      console.log('Search started'); // Логируем начало поиска
+      console.log('Search started');
+    } else {
+      console.error('WebSocket is not open');
     }
   }, [socket, filters]);
 
-  // Подключение к WebSocket серверу
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:8080');
     setSocket(ws);
@@ -68,7 +70,7 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
     ws.onmessage = (message) => {
       try {
         const data = JSON.parse(message.data);
-        console.log('Received message:', data); // Логируем входящие сообщения
+        console.log('Received message:', data);
 
         if (data.type === 'offer') {
           handleOffer(data.offer);
@@ -83,18 +85,30 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
     };
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
+      ws.close();
     };
   }, [handleOffer, handleAnswer, handleCandidate]);
 
-  // Управление поиском
+  useEffect(() => {
+    const initLocalStream = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing media devices:', error);
+      }
+    };
+
+    initLocalStream();
+  }, []);
+
   useEffect(() => {
     if (isSearching) {
       startSearching();
     } else {
-      if (socket) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'stop' }));
       }
       if (peerConnection) {
@@ -102,7 +116,7 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
         setPeerConnection(null);
       }
     }
-  }, [isSearching, startSearching, socket, peerConnection, setPeerConnection]);
+  }, [isSearching, startSearching, socket, peerConnection]);
 
   return (
     <div className="video-chat">
