@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const SearchControls = ({ setIsSearching }) => {
   const [isActive, setIsActive] = useState(false);
