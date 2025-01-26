@@ -61,8 +61,15 @@ const VideoChat = React.memo(({ filters, isSearching }) => {
   // Подключение к WebSocket серверу
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:8080');
-    setSocket(ws);
-
+      ws.onerror = (error) => {
+        console.warn('WebSocket connection error. Reconnecting...');
+        timeout = setTimeout(connect, reconnectInterval);
+      };
+      ws.onopen = () => {
+        console.log('WebSocket connection established');
+        clearTimeout(timeout);
+        setSocket(ws);
+      };
     ws.onmessage = (message) => {
       const data = JSON.parse(message.data);
       if (data.type === 'offer') {
