@@ -7,18 +7,123 @@ const VideoChat = React.memo(() => {
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const [isSearching, setIsSearching] = useState(false);
+  const pusherRef = useRef(null); // Используем useRef для хранения экземпляра Pusher
 
+  // Инициализация Pusher
+  useEffect(() => {
+    pusherRef.current = new Pusher('d1f91a7cd0838753276e', {
+      cluster: 'eu',
+      forceTLS: true,
+    });
+
+    const channel = pusherRef.current.subscribe('video-chat-channel');
+
+    // Обработка события "client-search"
+    channel.bind('client-search', (data) => {
+      console.log('Получено событие client-search:', data);
+      if (data.isSearching) {
+        setIsSearching(true);
+        channel.trigger('client-search-response', { isSearching: true });
+        console.log('Отправлено событие client-search-response');
+      }
+    });
+
+    // Обработка события "client-search-response"
+    channel.bind('client-search-response', (data) => {
+      console.log('Получено событие client-search-response:', data);
+      if (data.isSearching && isSearching) {
+        console.log('Найден собеседник');
+        setIsSearching(false);
+
+        // Создаем PeerConnection и отправляем offer
+        const pc = createPeerConnection();
+        peerConnectionRef.current = pc;
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            console.log('Отправляем ICE candidate:', event.candidate);
+            channel.trigger('client-candidate', { candidate: event.candidate });
+          }
+        };
+
+        pc.ontrack = (event) => {
+          if (remoteVideoRef.current) {
+            console.log('Получен удаленный поток');
+            remoteVideoRef.current.srcObject = event.streams[0];
+          }
+        };
+
+        const stream = localVideoRef.current?.srcObject;
+        if (stream) {
+          stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        }
+
+        pc.createOffer()
+          .then(offer => {
+            console.log('Создан offer:', offer);
+            return pc.setLocalDescription(offer);
+          })
+          .then(() => {
+            console.log('Отправляем offer:', pc.localDescription);
+            channel.trigger('client-offer', { offer: pc.localDescription });
+          })
+          .catch(error => {
+            console.error('Ошибка при создании offer:', error);
+          });
+      }
+    });
+
+    // Обработка события "client-offer"
+    channel.bind('client-offer', async (data) => {
+      console.log('Получен offer:', data.offer);
+      try {
+        await handleOffer(data.offer);
+      } catch (error) {
+        console.error('Ошибка при обработке offer:', error);
+      }
+    });
+
+    // Обработка события "client-answer"
+    channel.bind('client-answer', async (data) => {
+      console.log('Получен answer:', data.answer);
+      if (peerConnectionRef.current) {
+        try {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log('Установлен удаленный answer');
+        } catch (error) {
+          console.error('Ошибка при установке answer:', error);
+        }
+      }
+    });
+
+    // Обработка события "client-candidate"
+    channel.bind('client-candidate', async (data) => {
+      console.log('Получен candidate:', data.candidate);
+      if (peerConnectionRef.current) {
+        try {
+          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+          console.log('Добавлен ICE candidate');
+        } catch (error) {
+          console.error('Ошибка при добавлении ICE candidate:', error);
+        }
+      }
+    });
+
+    // Очистка при размонтировании компонента
+    return () => {
+      pusherRef.current.unsubscribe('video-chat-channel');
+      pusherRef.current.disconnect();
+    };
+  }, [isSearching]);
+
+  // Обработка offer
   const handleOffer = useCallback(async (offer) => {
     const pc = createPeerConnection();
     peerConnectionRef.current = pc;
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        const pusher = new Pusher('d1f91a7cd0838753276e', {
-          cluster: 'eu',
-          forceTLS: true,
-        });
-        const channel = pusher.subscribe('video-chat-channel');
+        const channel = pusherRef.current.subscribe('video-chat-channel');
         channel.trigger('client-candidate', { candidate: event.candidate });
       }
     };
@@ -38,104 +143,28 @@ const VideoChat = React.memo(() => {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-    const pusher = new Pusher('d1f91a7cd0838753276e', {
-      cluster: 'eu',
-      forceTLS: true,
-    });
-    const channel = pusher.subscribe('video-chat-channel');
+    const channel = pusherRef.current.subscribe('video-chat-channel');
     channel.trigger('client-answer', { answer });
   }, []);
 
-  useEffect(() => {
-    const pusher = new Pusher('d1f91a7cd0838753276e', {
-      cluster: 'eu',
-      forceTLS: true,
-    });
-
-    const channel = pusher.subscribe('video-chat-channel');
-
-    channel.bind('client-search', (data) => {
-      console.log('Получено событие client-search:', data);
-      if (data.isSearching) {
-        setIsSearching(true);
-        channel.trigger('client-search-response', { isSearching: true });
-      }
-    });
-
-    channel.bind('client-search-response', (data) => {
-      console.log('Получено событие client-search-response:', data);
-      if (data.isSearching && isSearching) {
-        console.log('Найден собеседник');
-        setIsSearching(false);
-
-        // Создаем PeerConnection и отправляем offer
-        const pc = createPeerConnection();
-        peerConnectionRef.current = pc;
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            channel.trigger('client-candidate', { candidate: event.candidate });
-          }
-        };
-
-        pc.ontrack = (event) => {
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = event.streams[0];
-          }
-        };
-
-        const stream = localVideoRef.current?.srcObject;
-        if (stream) {
-          stream.getTracks().forEach(track => pc.addTrack(track, stream));
-        }
-
-        pc.createOffer().then(offer => {
-          pc.setLocalDescription(offer);
-          channel.trigger('client-offer', { offer });
-        });
-      }
-    });
-
-    channel.bind('client-offer', async (data) => {
-      console.log('Получен offer:', data.offer);
-      await handleOffer(data.offer);
-    });
-
-    channel.bind('client-answer', async (data) => {
-      console.log('Получен answer:', data.answer);
-      if (peerConnectionRef.current) {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-      }
-    });
-
-    channel.bind('client-candidate', async (data) => {
-      console.log('Получен candidate:', data.candidate);
-      if (peerConnectionRef.current) {
-        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
-    });
-
-    return () => {
-      pusher.unsubscribe('video-chat-channel');
-      pusher.disconnect();
-    };
-  }, [handleOffer, isSearching]);
-
+  // Захват медиапотока
   useEffect(() => {
     let stream = null;
 
     navigator.mediaDevices.getUserMedia({ 
       video: { width: 640, height: 480 }, 
       audio: true 
-    }).then(mediaStream => {
-      stream = mediaStream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        console.log('Медиапоток захвачен');
-      }
-    }).catch(error => {
-      console.error('Ошибка захвата медиапотока:', error);
-    });
+    })
+      .then(mediaStream => {
+        stream = mediaStream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+          console.log('Медиапоток захвачен');
+        }
+      })
+      .catch(error => {
+        console.error('Ошибка захвата медиапотока:', error);
+      });
 
     return () => {
       if (stream) {

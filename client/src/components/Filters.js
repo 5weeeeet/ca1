@@ -6,12 +6,17 @@ const Filters = ({ setFilters }) => {
   const [age, setAge] = useState('');
 
   const applyFilters = () => {
-    setFilters({ gender, country, age });
+    const filters = {};
+    if (gender) filters.gender = gender;
+    if (country) filters.country = country;
+    if (age) filters.age = age;
+    setFilters(filters);
   };
 
   return (
     <div className="filters">
       <select value={gender} onChange={(e) => setGender(e.target.value)}>
+        <option value="">Любой пол</option>
         <option value="male">Мужской</option>
         <option value="female">Женский</option>
       </select>

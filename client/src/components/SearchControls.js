@@ -11,7 +11,9 @@ const SearchControls = ({ setIsSearching }) => {
     });
 
     const channel = pusher.subscribe('video-chat-channel');
-
+    channel.trigger('client-search', { isSearching: newState });
+    console.log('Отправлено событие client-search:', { isSearching: newState });
+    
     channel.bind('found', (data) => {
       console.log('Собеседник найден:', data);
       setIsSearching(false);
