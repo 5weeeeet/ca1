@@ -6,7 +6,6 @@ const VideoChat = React.memo(() => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
-//  const socketRef = useRef(null);
 
   // Функция для обработки предложения (offer)
   const handleOffer = useCallback(async (offer) => {
@@ -20,7 +19,7 @@ const VideoChat = React.memo(() => {
           forceTLS: true,
         });
         const channel = pusher.subscribe('video-chat-channel');
-        channel.trigger('client-candidate', { candidate: event.candidate });
+        channel.trigger('client-candidate', { candidate: event.candidate }); // Клиентское событие
       }
     };
 
@@ -44,7 +43,7 @@ const VideoChat = React.memo(() => {
       forceTLS: true,
     });
     const channel = pusher.subscribe('video-chat-channel');
-    channel.trigger('client-answer', { answer });
+    channel.trigger('client-answer', { answer }); // Клиентское событие
   }, []);
 
   // Подключение к Pusher
@@ -56,19 +55,20 @@ const VideoChat = React.memo(() => {
 
     const channel = pusher.subscribe('video-chat-channel');
 
-    channel.bind('offer', async (data) => {
+    // Слушаем клиентские события
+    channel.bind('client-offer', async (data) => {
       console.log('Получен offer:', data.offer);
       await handleOffer(data.offer);
     });
 
-    channel.bind('answer', async (data) => {
+    channel.bind('client-answer', async (data) => {
       console.log('Получен answer:', data.answer);
       if (peerConnectionRef.current) {
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
       }
     });
 
-    channel.bind('candidate', async (data) => {
+    channel.bind('client-candidate', async (data) => {
       console.log('Получен candidate:', data.candidate);
       if (peerConnectionRef.current) {
         await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
