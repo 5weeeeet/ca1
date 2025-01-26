@@ -17,6 +17,57 @@
 //   console.log('Server is running on port 3000');
 // });
 
+// const express = require('express');
+// const Pusher = require('pusher');
+// const bodyParser = require('body-parser');
+
+// const app = express();
+// app.use(bodyParser.json());
+
+// // Инициализация Pusher
+// const pusher = new Pusher({
+//   appId: "1931874",
+//   key: "d1f91a7cd0838753276e",
+//   secret: "c794093270ff59bf6dc0",
+//   cluster: "eu",
+//   useTLS: true
+// });
+
+// // Эндпоинт для отправки offer
+// app.post('/send-offer', (req, res) => {
+//   const { offer } = req.body;
+
+//   // Отправка offer через Pusher
+//   pusher.trigger('video-chat-channel', 'offer', { offer });
+
+//   res.status(200).send('Offer отправлен');
+// });
+
+// // Эндпоинт для отправки answer
+// app.post('/send-answer', (req, res) => {
+//   const { answer } = req.body;
+
+//   // Отправка answer через Pusher
+//   pusher.trigger('video-chat-channel', 'answer', { answer });
+
+//   res.status(200).send('Answer отправлен');
+// });
+
+// // Эндпоинт для отправки candidate
+// app.post('/send-candidate', (req, res) => {
+//   const { candidate } = req.body;
+
+//   // Отправка candidate через Pusher
+//   pusher.trigger('video-chat-channel', 'candidate', { candidate });
+
+//   res.status(200).send('Candidate отправлен');
+// });
+
+// // Запуск сервера
+// app.listen(3000, () => {
+//   console.log('Сервер запущен на http://localhost:3000');
+// });
+
 const express = require('express');
 const Pusher = require('pusher');
 const bodyParser = require('body-parser');
@@ -33,34 +84,30 @@ const pusher = new Pusher({
   useTLS: true
 });
 
-// Эндпоинт для отправки offer
-app.post('/send-offer', (req, res) => {
-  const { offer } = req.body;
+const usersSearching = []; // Очередь пользователей, ищущих собеседника
 
-  // Отправка offer через Pusher
-  pusher.trigger('video-chat-channel', 'offer', { offer });
+// Эндпоинт для поиска собеседника
+app.post('/search', (req, res) => {
+  const { isSearching } = req.body;
 
-  res.status(200).send('Offer отправлен');
-});
+  if (isSearching) {
+    usersSearching.push(req.ip); // Добавляем пользователя в очередь поиска
+    if (usersSearching.length >= 2) {
+      const user1 = usersSearching.shift();
+      const user2 = usersSearching.shift();
 
-// Эндпоинт для отправки answer
-app.post('/send-answer', (req, res) => {
-  const { answer } = req.body;
+      // Уведомляем обоих пользователей о найденном собеседнике
+      pusher.trigger('video-chat-channel', 'found', { user1, user2 });
+    }
+  } else {
+    // Удаляем пользователя из очереди поиска
+    const index = usersSearching.indexOf(req.ip);
+    if (index !== -1) {
+      usersSearching.splice(index, 1);
+    }
+  }
 
-  // Отправка answer через Pusher
-  pusher.trigger('video-chat-channel', 'answer', { answer });
-
-  res.status(200).send('Answer отправлен');
-});
-
-// Эндпоинт для отправки candidate
-app.post('/send-candidate', (req, res) => {
-  const { candidate } = req.body;
-
-  // Отправка candidate через Pusher
-  pusher.trigger('video-chat-channel', 'candidate', { candidate });
-
-  res.status(200).send('Candidate отправлен');
+  res.status(200).json({ message: 'Запрос обработан' });
 });
 
 // Запуск сервера

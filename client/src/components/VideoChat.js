@@ -19,7 +19,7 @@ const VideoChat = React.memo(() => {
           forceTLS: true,
         });
         const channel = pusher.subscribe('video-chat-channel');
-        channel.trigger('client-candidate', { candidate: event.candidate }); // Клиентское событие
+        channel.trigger('client-candidate', { candidate: event.candidate });
       }
     };
 
@@ -43,7 +43,7 @@ const VideoChat = React.memo(() => {
       forceTLS: true,
     });
     const channel = pusher.subscribe('video-chat-channel');
-    channel.trigger('client-answer', { answer }); // Клиентское событие
+    channel.trigger('client-answer', { answer });
   }, []);
 
   // Подключение к Pusher
@@ -54,6 +54,12 @@ const VideoChat = React.memo(() => {
     });
 
     const channel = pusher.subscribe('video-chat-channel');
+
+    // Слушаем событие "found" для уведомления о найденном собеседнике
+    channel.bind('found', (data) => {
+      console.log('Собеседник найден:', data);
+      // Здесь можно начать обмен offer/answer
+    });
 
     // Слушаем клиентские события
     channel.bind('client-offer', async (data) => {
