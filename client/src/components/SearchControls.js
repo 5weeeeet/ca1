@@ -3,7 +3,8 @@ import Pusher from 'pusher-js';
 
 const SearchControls = ({ setIsSearching }) => {
   const [isActive, setIsActive] = useState(false);
-  const pusherRef = useRef(null); // Используем useRef для хранения экземпляра Pusher
+  const [status, setStatus] = useState('Неактивно'); // Состояние для отображения статуса
+  const pusherRef = useRef(null);
 
   useEffect(() => {
     // Инициализация Pusher
@@ -19,24 +20,52 @@ const SearchControls = ({ setIsSearching }) => {
       console.log('Собеседник найден:', data);
       setIsSearching(false);
       setIsActive(false);
+      setStatus('Собеседник найден');
+    });
+
+    // Обработка ошибок подписки
+    channel.bind('pusher:subscription_error', (error) => {
+      console.error('Ошибка подписки на канал:', error);
+      setStatus('Ошибка подключения');
     });
 
     // Очистка при размонтировании компонента
     return () => {
-      pusherRef.current.unsubscribe('video-chat-channel');
-      pusherRef.current.disconnect();
+      if (pusherRef.current) {
+        pusherRef.current.unsubscribe('video-chat-channel');
+        pusherRef.current.disconnect();
+      }
     };
   }, [setIsSearching]);
 
   const handleSearch = () => {
-    const newState = !isActive; // Определяем новое состояние
+    const newState = !isActive;
     setIsActive(newState);
     setIsSearching(newState);
+    setStatus(newState ? 'Поиск активен' : 'Поиск прекращен');
 
-    // Отправляем событие "client-search"
+    // Проверка, что Pusher инициализирован
+    if (!pusherRef.current) {
+      console.error('Pusher не инициализирован');
+      setStatus('Ошибка: Pusher не инициализирован');
+      return;
+    }
+
+    // Отправка события "client-search"
     const channel = pusherRef.current.subscribe('video-chat-channel');
-    channel.trigger('client-search', { isSearching: newState });
-    console.log('Отправлено событие client-search:', { isSearching: newState });
+    if (channel) {
+      channel.trigger('client-search', { isSearching: newState });
+      console.log('Отправлено событие client-search:', { isSearching: newState });
+    } else {
+      console.error('Канал не подключен');
+      setStatus('Ошибка: Канал не подключен');
+    }
+  };
+
+  const handleNextPartner = () => {
+    console.log('Запрос следующего собеседника');
+    setStatus('Поиск следующего собеседника');
+    // Логика для поиска следующего собеседника
   };
 
   return (
@@ -44,7 +73,8 @@ const SearchControls = ({ setIsSearching }) => {
       <button onClick={handleSearch}>
         {isActive ? 'Прекратить поиск' : 'Начать поиск'}
       </button>
-      <button onClick={() => console.log('Next partner')}>Далее</button>
+      <button onClick={handleNextPartner}>Далее</button>
+      <p>Статус: {status}</p>
     </div>
   );
 };
