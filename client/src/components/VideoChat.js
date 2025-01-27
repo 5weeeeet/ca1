@@ -7,59 +7,63 @@ const VideoChat = React.memo(() => {
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const pusherRef = useRef(null);
 
-  // Обработка offer
   const handleOffer = useCallback(async (offer) => {
-    const pc = createPeerConnection();
-    peerConnectionRef.current = pc;
+    try {
+      const pc = createPeerConnection();
+      peerConnectionRef.current = pc;
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        const channel = pusherRef.current.subscribe('private-video-chat-channel');
-        channel.trigger('client-candidate', { candidate: event.candidate });
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          const channel = pusherRef.current.subscribe('private-video-chat-channel');
+          channel.trigger('client-candidate', { candidate: event.candidate });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+          setConnectionStatus('connected');
+        }
+      };
+
+      const stream = localVideoRef.current?.srcObject;
+      if (stream) {
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
       }
-    };
 
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
 
-    const stream = localVideoRef.current?.srcObject;
-    if (stream) {
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      const channel = pusherRef.current.subscribe('private-video-chat-channel');
+      channel.trigger('client-answer', { answer });
+    } catch (error) {
+      console.error('Ошибка при обработке offer:', error);
+      setConnectionStatus('error');
     }
-
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    const channel = pusherRef.current.subscribe('private-video-chat-channel');
-    channel.trigger('client-answer', { answer });
   }, []);
 
-  // Инициализация Pusher и подписка на события
   useEffect(() => {
     pusherRef.current = new Pusher('d1f91a7cd0838753276e', {
       cluster: 'eu',
       forceTLS: true,
-      authEndpoint: '/.netlify/functions/pusher-auth', // Укажите ваш endpoint для авторизации
+      authEndpoint: '/.netlify/functions/pusher-auth',
     });
 
     const channel = pusherRef.current.subscribe('private-video-chat-channel');
 
-    // Логирование подписки на канал
     channel.bind('pusher:subscription_succeeded', () => {
       console.log('Успешно подключен к каналу private-video-chat-channel');
     });
 
     channel.bind('pusher:subscription_error', (error) => {
       console.error('Ошибка подключения к каналу:', error);
+      setConnectionStatus('error');
     });
 
-    // Обработка события "client-search"
     channel.bind('client-search', (data) => {
       console.log('Получено событие client-search:', data);
       if (data.isSearching) {
@@ -69,14 +73,12 @@ const VideoChat = React.memo(() => {
       }
     });
 
-    // Обработка события "client-search-response"
     channel.bind('client-search-response', (data) => {
       console.log('Получено событие client-search-response:', data);
       if (data.isSearching && isSearching) {
         console.log('Найден собеседник');
         setIsSearching(false);
 
-        // Создаем PeerConnection и отправляем offer
         const pc = createPeerConnection();
         peerConnectionRef.current = pc;
 
@@ -89,6 +91,7 @@ const VideoChat = React.memo(() => {
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = event.streams[0];
+            setConnectionStatus('connected');
           }
         };
 
@@ -104,21 +107,21 @@ const VideoChat = React.memo(() => {
           })
           .catch(error => {
             console.error('Ошибка при создании offer:', error);
+            setConnectionStatus('error');
           });
       }
     });
 
-    // Обработка события "client-offer"
     channel.bind('client-offer', async (data) => {
       console.log('Получен offer:', data.offer);
       try {
         await handleOffer(data.offer);
       } catch (error) {
         console.error('Ошибка при обработке offer:', error);
+        setConnectionStatus('error');
       }
     });
 
-    // Обработка события "client-answer"
     channel.bind('client-answer', async (data) => {
       console.log('Получен answer:', data.answer);
       if (peerConnectionRef.current) {
@@ -127,11 +130,11 @@ const VideoChat = React.memo(() => {
           console.log('Установлен удаленный answer');
         } catch (error) {
           console.error('Ошибка при установке answer:', error);
+          setConnectionStatus('error');
         }
       }
     });
 
-    // Обработка события "client-candidate"
     channel.bind('client-candidate', async (data) => {
       console.log('Получен candidate:', data.candidate);
       if (peerConnectionRef.current) {
@@ -140,18 +143,20 @@ const VideoChat = React.memo(() => {
           console.log('Добавлен ICE candidate');
         } catch (error) {
           console.error('Ошибка при добавлении ICE candidate:', error);
+          setConnectionStatus('error');
         }
       }
     });
 
-    // Очистка при размонтировании компонента
     return () => {
       pusherRef.current.unsubscribe('private-video-chat-channel');
       pusherRef.current.disconnect();
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
     };
   }, [isSearching, handleOffer]);
 
-  // Захват медиапотока
   useEffect(() => {
     let stream = null;
 
@@ -168,6 +173,7 @@ const VideoChat = React.memo(() => {
       })
       .catch(error => {
         console.error('Ошибка захвата медиапотока:', error);
+        setConnectionStatus('error');
       });
 
     return () => {
@@ -181,6 +187,7 @@ const VideoChat = React.memo(() => {
     <div className="video-chat">
       <video ref={localVideoRef} autoPlay muted></video>
       <video ref={remoteVideoRef} autoPlay></video>
+      <div>Статус соединения: {connectionStatus}</div>
     </div>
   );
 });
